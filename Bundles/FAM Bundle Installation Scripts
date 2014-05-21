@@ -1,0 +1,101 @@
+ncFAR_Constants.js
+
+
+var LIST_DEPRHIST_ACCMETH = '1';
+var LIST_DEPRHIST_METH1 = '2';
+var LIST_DEPRHIST_METH2 = '3';
+var LIST_DEPRHIST_METH3 = '4';
+var LIST_DEPRHIST_METH4 = '5';
+var LIST_DEPRHIST_METH5 = '6';
+
+var LIST_ACCMETH = '1';
+var LIST_DEPR_METH1 = '2';
+var LIST_DEPR_METH2 = '3';
+var LIST_DEPR_METH3 = '4';
+var LIST_DEPR_METH4 = '5';
+var LIST_DEPR_METH5 = '6';
+
+/* Asset Status List */
+var ASSET_STATUS_NEW = '6';
+var ASSET_STATUS_DEPRECIATING = '2';
+var ASSET_STATUS_FULLY_DEP = '3';
+var ASSET_STATUS_DISPOSED = '4';
+var ASSET_STATUS_SPLITTING = '7';
+var ASSET_STATUS_PARTIALLY_DISP = '8';
+
+/* Depreciation Period */
+var DEPR_PERIOD_MONTHLY = '1';
+var DEPR_PERIOD_ANNUALLY = '2';
+var DEPR_PERIOD_FISCALPERIOD = '3';
+var DEPR_PERIOD_FISCALYEAR = '4';
+
+/* Accrual Convention */
+// var ACCRUAL_CONVENTION_EQUALAMOUNTS = '1';
+var ACCRUAL_CONVENTION_FORMULARESULT = '1';
+var ACCRUAL_CONVENTION_ACTUALPERIOD = '2';
+
+/* Period Convention */
+var PERIOD_CONVENTION_12MONTHS = '1';
+var PERIOD_CONVENTION_EXACTNUMBER = '2';
+
+/* Final Period Convention */
+var FINAL_CONVENTION_FULLYDEPRECIATE = '1';
+var FINAL_CONVENTION_RETAINBALANCE = '2';
+
+/* Account Types */
+var ACCOUNT_TYPE_FIXEDASSET = 'FixedAsset';
+var ACCOUNT_TYPE_BANK = 'Bank';
+var ACCOUNT_TYPE_EQUITY = 'Equity';
+var ACCOUNT_TYPE_DEFERREDEXPENSE = 'DeferExpense';
+var ACCOUNT_TYPE_EXPENSE = 'Expense';
+var ACCOUNT_TYPE_OTHEREXPENSE = 'OthExpense';
+var ACCOUNT_TYPE_INCOME = 'Income';
+var ACCOUNT_TYPE_OTHERINCOME = 'OthIncome';
+var ACCOUNT_TYPE_NONPOSTING = 'NonPosting';
+
+/* List - FAM Used Accounts */
+var FAM_USED_ASSETACCOUNT = '1';
+var FAM_USED_DEPRACCOUNT = '2';
+var FAM_USED_DEPEXPENSE = '3';
+var FAM_USED_WRITEOFFACCOUNT = '4';
+var FAM_USED_WRITEDOWNNACCOUNT = '5';
+var FAM_USED_DISPOSALACCOUNT = '6';
+var FAM_USED_ALL = '1,2,3,4,5,6';
+
+/* List - FAM Asset Proposal Status */
+var FAM_PROPSTATUS_NEW = '1';
+var FAM_PROPSTATUS_PENDING = '2';
+var FAM_PROPSTATUS_CREATED = '3';
+var FAM_PROPSTATUS_REJECTED = '4';
+var FAM_PROPSTATUS_COMBINED = '5';
+
+var _context = nlapiGetContext();
+var _current_user_language = _context.getPreference('LANGUAGE');
+
+function GetDeprMethodName(id)
+{
+	var DMname;
+	if (id == 0 || id == null || id == '') return FAM.resourceManager.GetString('custpage_constant_accountingmethod');
+	
+	return nlapiLookupField('customrecord_ncfar_altmethods',id,'name');
+	
+	/*jgutana
+	if(id == 1) DMname = 'Accounting Method';
+	else if(id == 2) DMname = 'Depreciation Method 1';
+	else if(id == 3) DMname = 'Depreciation Method 2';
+	else if(id == 4) DMname = 'Depreciation Method 3';
+	else if(id == 5) DMname = 'Depreciation Method 4';
+	else if(id == 6) DMname = 'Depreciation Method 5';
+	return DMname;
+	*/
+}
+
+function GetAssetSelection(value)
+{
+	var AssetSelect;
+	if(value == 'all_assets') AssetSelect = FAM.resourceManager.GetString('custpage_constant_allassets');
+	else if (value == 'except_leased') AssetSelect = FAM.resourceManager.GetString('custpage_constant_exceptleased');
+	else if(value == 'leased_only') AssetSelect = FAM.resourceManager.GetString('custpage_constant_onlyaassets');
+	
+	return AssetSelect;
+}
