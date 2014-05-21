@@ -1,0 +1,100 @@
+	preview HackPortlet.js
+	
+	/**
+ * Copyright NetSuite, Inc. 2013 All rights reserved. 
+ * The following code is a demo prototype. Due to time constraints of a demo,
+ * the code may contain bugs, may not accurately reflect user requirements 
+ * and may not be the best approach. Actual implementation should not reuse 
+ * this code without due verification.
+ * 
+ * (Module description here. Whole header length should not exceed 
+ * 100 characters in width. Use another line if needed.)
+ * 
+ * Version    Date            Author           Remarks
+ * 1.00       13 Nov 2013     ieugenio
+ * 
+ */
+
+/**
+ * @param {nlobjPortlet} portlet Current portlet object
+ * @param {Number} column Column position index: 1 = left, 2 = middle, 3 = right
+ * @return {void}
+ */
+function hackHtmlPortlet(portlet, column) {
+    portlet.setTitle('Colors');
+    
+    var aBoxes = [ "<div class=\'boxwin1\'><h1>-26%</h1><p> Gross Profit</p></div>",
+                   "<div class=\'boxwin2\'><h1>+12%</h1><p>Sales</p></div>",
+                   "<div class=\'boxwin3\'><h1>+2.6%</h1><p>New Customers</p></div>",
+                   "<div class=\'boxwin4\'><h1>+14%</h1><p>Expenses</p></div>",
+                   "<p style=\'clear:both;\'></p>"
+                 ];
+    
+    var html = [
+        '<style>',
+        'h1 {',
+        'font-size: 23pt;',
+        '}',
+        '.boxwin1 {',
+            'vertical-align: middle;',
+//            'border: solid 1px black;',
+            'text-align: right;',
+            'background: #ff0040;',
+            'color: #ffffff;',
+            'width: 23%;',
+            'height: 100px;',
+            'float: left;',
+            'margin: 5px;',
+            'min-width:200px;',
+            'padding: 10px 3px 3px 3px;',
+        '}',
+        '.boxwin2 {',
+            'vertical-align: middle;',
+//            'border: solid 1px black;',
+            'text-align: right;',
+            'background: #28b779;',
+            'color: #ffffff;',
+            'width: 23%;',
+            'height: 100px;',
+            'float: left;',
+            'margin: 5px;',
+            'min-width:200px;',
+            'padding: 10px 3px 3px 3px;',
+        '}',
+        '.boxwin3 {',
+            'vertical-align: middle;',
+//            'border: solid 1px black;',
+            'text-align: right;',
+            'background: #842b99;',
+            'color: #ffffff;',
+            'width: 23%;',
+            'height: 100px;',
+            'float: left;',
+            'margin: 5px;',
+            'min-width:200px;',
+            'padding: 10px 3px 3px 3px;',
+        '}',
+        '.boxwin4 {',
+            'vertical-align: middle;',
+//            'border: solid 1px black;',
+            'text-align: right;',
+            'background: #ffb748;',
+            'color: #ffffff;',
+            'width: 23%;',
+            'height: 100px;',
+            'float: left;',
+            'margin: 5px;',
+            'min-width:200px;',
+            'padding: 10px 3px 3px 3px;',
+        '}',
+        '.boxcontainer {',
+            'clear: both;',
+        '}',
+        '</style>',
+        '<script type="text/javascript">',
+            'parent.document.getElementById("div__title").innerHTML = "' + aBoxes.join('') + '";',
+        '</script>'
+    ];
+    
+    portlet.setHtml(html.join(''));
+}
