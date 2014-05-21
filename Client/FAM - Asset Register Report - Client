@@ -1,0 +1,96 @@
+preview ncFAR_AssetRegisterClientScripts.js
+
+/* *************************************************
+ * Fixed Assets Register, Netsuite Inc.
+ *
+ * Client code for FAR
+ * ScriptId = 
+ *
+ * Version History
+ * 		04-July 2011 Victor Sayas Initial version created
+ ***************************************************/
+
+ /* AssetRegisterPageInit - Event Script for Page Init to disable or enable fields
+  *
+  * <details of function....>
+ */
+
+function AssetRegisterPageInit() {
+	window.onbeforeunload = '';	
+}
+
+/* AssetRegisterOnSave - Event Script for Save to process and save data for Asset Register
+ *
+ */
+function AssetRegisterOnSave() {
+	
+	nlapiSetFieldValue( 'custpage_hiddenfield', getSubsidiary() );
+
+	return true;
+}
+
+//Fetch the subsidiary by parsing the selected entries from the form
+function getSubsidiary(){
+	var SubsParam = nlapiGetFieldValue('custpage_filtermssubsid');
+	var Slist = '';
+	var Sarray;
+	if( (SubsParam != '') && (SubsParam != null) )
+	{
+		Sarray = SubsParam.split('');
+		if(nlapiGetFieldValue('custpage_filtercbincchild')=='T') // include child subs?
+		{
+			//for correct building of subsidiary list for non-admin role
+			var allowedSarray = nlapiGetFieldValue('custpage_allowedsubsidiaries').split(',');
+			for(var l=0; l< Sarray.length; ++l)
+			{
+				var childSubsids = GetChildrenOfSubsid(Sarray[l]); //20 units each call
+
+				for(var m=0; m<childSubsids.length; ++m) // for each child returned, add to Subsids array if not already there but allowed for the role
+				{
+					var index1 = IndexOfArray(Sarray, childSubsids[m]); //check against selected subsidiaries: we want only -1
+					var index2 = IndexOfArray(allowedSarray, childSubsids[m]); //check against allowed subsidiaries: we do NOT want -1
+					if((index1 == -1) && (index2 != -1))
+					{
+						Sarray[Sarray.length] = childSubsids[m];
+					}
+				}
+			}
+		}
+		Slist = Sarray.join(':');
+	}	
+	return Slist;
+}
+
+//Fetch the children of a given parent subsidiary
+function GetChildrenOfSubsid(subid)
+{
+	var pSubsidName = nlapiLookupField('subsidiary', subid, 'name');
+	var childSubsids = [];
+
+	var sfNotElim = new nlobjSearchFilter('iselimination',null,'is','F',null);
+	var sfNotInactive = new nlobjSearchFilter('isinactive',null,'is','F',null);
+	var sfArray = [sfNotElim, sfNotInactive];
+
+	var srSubsids = nlapiSearchRecord('subsidiary',null,sfArray,[new nlobjSearchColumn('name')]);
+	for ( var i = 0; srSubsids != null && i < srSubsids.length; i++ )
+	{
+		var l_SubsidId = srSubsids[i].getId();
+		if( l_SubsidId == subid) continue;
+
+		var l_SubsidName = srSubsids[i].getValue('name');
+		if(l_SubsidName.indexOf(pSubsidName) != -1)
+			childSubsids[childSubsids.length] = l_SubsidId;
+
+	}
+	return childSubsids;
+}
+
+/* IndexOfArray - Helper function: returns the first index position of a value in an Array.
+ * Otherwise it returns -1. */
+function IndexOfArray(array, val)
+{
+	for(var i=0; array != null && i < array.length; i++)
+		if(val == array[i])
+			return i;
+	return -1;
+}
