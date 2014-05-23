@@ -1,0 +1,70 @@
+
+Close Popup Window and Refresh Opener
+by Dave Kupratis
+Here’s the scenario, you created a custom button in one of your page (say, Customer) and when clicked you want a popup window to open another page (say, Task). Sounds Easy Right? Your code in creating the button might be similar to this:
+
+1
+2
+3
+var url = nlapiResolveURL("RECORD", "task", null, false);
+var script = "win = window.open('" + url + "', 'win', 'resizable=0,scrollbars=0,width=950,height=700');";
+form.addButton("custpage_newtask", "New Task", script);
+When you click the button, a popup window will open. The Create New Task page will be loaded in the newly opened window. All seems to be working fine until you click the Save button. The task will be saved but after the postback, the customer record will be loaded INSIDE the same popup window.
+
+How to fix this? Calling a window.close() inside the saveRecord function of the Task’s client-side SuiteScript will do no good since saveRecord will trigger before the actual saving process. One possible workaround would be to add an afterSubmit function in our server-side SuiteScript that will redirect the page to a Suitelet. The suitelet will be a blank/white page when viewed but it will trigger the refresh of the opener and the closing of the popup window. Let me explain this via code:
+
+The afterSubmit function of the Task can be like this:
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+function afterSubmit(type)
+{
+    if (type == "create")
+    {
+        var params = new Array();
+        params["custpage_customerid"] = 12345;
+        nlapiSetRedirectURL("SUITELET", "customscript_blankredirect", "customdeploy_blankredirect", null, params);
+    }
+}
+And the suitelet code can look like this:
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+function main(request,response)
+{
+    var customerid = request.getParameter("custpage_customerid");
+ 
+    var html = "";
+    html +=" &lt;html&gt;";
+    html +=" &lt;head&gt;";
+    html +=" &lt;script&gt;";
+    html +=" window.opener.location='" + nlapiResolveURL("RECORD","customer", customerid, null) + "';";
+    html +=" window.close();";
+    html +=" &lt;/script&gt;";
+    html +=" &lt;/head&gt;";
+    html +=" &lt;/html&gt;";
+ 
+    response.write(html);
+}
+There you go! Happy coding.
