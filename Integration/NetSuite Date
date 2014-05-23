@@ -1,0 +1,32 @@
+
+Why I Do Not Trust a NetSuite Date
+by David Kupratis
+I learned this the hard way. Consider the following code:
+
+1
+2
+3
+var so = nlapiLoadRecord("salesorder", "3479274");
+var tranDate = so.getFieldValue("trandate");
+var adjustedDate = nlapiAddMonths(tranDate, 2);
+At first look all seems fine but the above code will throw this error as it passes through the third line:
+
+UNEXPECTED_ERROR TypeError: Cannot find function getTime.
+
+I didn’t call any getTime function. How come I’m having this error?
+
+Debugging my code reveals that the .getFieldValue(“trandate”) part returns the date as string. It also follows the date formatting defined in the user preference. If the trandate of the SO is 12/15/2009 and your date formatting is set to DD-MONTH-YYYY, the resulting value would be “15-DECEMBER-2009”. Having said that now it’s obvious that doing nlapiAddMonths(“15-DECEMBER-2009”, 2) will definitely throw an error because the first parameter is not a valid date value.
+
+date-formatting
+
+Luckily, NetSuite API has a nlapiStringToDate() method to solve this dilemma. Adding the method in our code solves our problem:
+
+1
+2
+3
+var so = nlapiLoadRecord("salesorder", "3479274");
+var tranDate = nlapiStringToDate(so.getFieldValue("trandate"));
+var adjustedDate = nlapiAddMonths(tranDate, 2);
+On a similar note, getting the value of a date field in a nlobjSearchResult object will also give the date as string following the format defined in the user preference.
+
+Happy coding!
