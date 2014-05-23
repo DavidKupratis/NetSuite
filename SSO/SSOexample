@@ -1,0 +1,10 @@
+In OneLogin, navigate to Apps -> Find apps
+Search and add NetSuite
+Select API and Continue
+Make a request to your NetSuite contact to setup Single Sign-On. 
+He or she will ask you for your Public RSA Key which can be found in the Single Sign-on tab of your Netsuite app. 
+Your NetSuite contact should request that this file be zipped and sent to a specific email for registration.
+Fill out your Partner ID and Company ID. If you do not know your Partner ID or your Company ID, please request help from your NetSuite contact.
+If you would like to have your users return to OneLogin upon sign-out, set the Return URL to https://app.onelogin.com/client/apps
+Your users' User ID's will be the email address with which your users login. When logging in the first time, your users will have to enter their User ID and Password one time and select a role if they have multiple roles. The next time the user goes to login, they will not need to enter their login information. Upon login, they will assume the role they chose when entering their User ID and Password.
+IMPORTANT: The first time you use the app you have setup for Single Sign-On with NetSuite, you need to do so using a NetSuite admin account.
