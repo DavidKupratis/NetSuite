@@ -1,0 +1,329 @@
+/**
+ * Module Description
+ * 
+ * Version    Date            Author           Remarks
+ * 1.00       12 Oct 2012     baluan
+ *
+ */
+
+var process = (function() {
+	var methodGet = 'GET',
+		methodPost = 'POST';
+	
+	// Form field ids
+	var idFldAssembly = 'custpage_assembly',
+		idFldUnitOfMeasure = 'custpage_unitofmeasure',
+		idFldLocation = 'custpage_location',
+		idFldTopLevelOnly = 'custpage_toplevelonly',
+		idFldBomDisplayControl = 'custpage_bomdisplaycontrol',
+		idFldDate = 'custpage_date',
+		idFldAction = 'custpage_action';
+	
+	// List field ids
+	var idList = 'custpage_costedbomlist',
+		idColCompName = 'custpage_compname',
+		idColLevel = 'custpage_level',
+		idColQtyPerAss = 'custpage_qtyperass',
+		idColUom = 'custpage_uom',
+		idColMaterial = 'custpage_material',
+		idColLabor = 'custpage_labor',
+		idColSevice = 'custpage_service',
+		idColSubTotal = 'custpage_subtotal',
+		idColTotal = 'custpage_total';
+	
+	// Script ids
+	var idCostedBomClient = 'customscript_geo_costed_bom_cs';
+
+	return {
+		init: (function(req, res) {
+			var self = this,
+				method = req.getMethod();
+			
+			self.method = method;
+			self.req = req;
+			self.res = res;
+			self.contructContent();
+		})
+		,contructContent: (function() {
+			var self = this,
+				req = self.req,
+				res = self.res,
+				form = nlapiCreateForm('Costed Bill of Materials Inquiry'),
+				list = form.addSubList(idList, 'list', 'Items'); 
+			
+			form.setScript(idCostedBomClient);	
+			
+			// Get parameters for filter
+			var sFilterAssembly = req.getParameter(idFldAssembly);
+				// sFilterLocation = req.getParameter(idFldLocation),
+				// sFilterTopLevelOnly = req.getParameter(idFldTopLevelOnly),
+				// sFilterDate = req.getParameter(idFldDate)
+			
+			// Assign to self.
+			// self.sFilterLocation = sFilterLocation;
+			// self.sFilterTopLevelOnly = sFilterTopLevelOnly;
+			// self.sFilterDate = sFilterDate;
+			
+			// Add form fields
+			var fldAssembly = form.addField(idFldAssembly, 'select', 'Assembly', 'assemblyitem'),
+				// fldUnitOfMeasure = form.addField(idFldUnitOfMeasure, 'text', 'Unit of Measure').setDisplayType('inline'),
+				// fldLocation = form.addField(idFldLocation, 'select', 'Location', 'location'),
+				// fldTopLevelOnly = form.addField(idFldTopLevelOnly, 'checkbox', 'Top Level Only'),
+				// fldBomDisplayControl = form.addField(idFldBomDisplayControl, 'text', 'BOM Display Control').setDisplayType('disabled'),
+				// fldDate = form.addField(idFldDate, 'date', 'Date'),
+				
+				// Other fields
+				fldAction = form.addField(idFldAction, 'text', 'Action');
+			
+			// Set default values
+			fldAction.setDefaultValue('view');
+			fldAction.setDisplayType('hidden');
+			fldAssembly.setDefaultValue(sFilterAssembly);
+			fldAssembly.setMandatory(true);
+			// fldLocation.setDefaultValue(sFilterLocation);
+			// fldTopLevelOnly.setDefaultValue(sFilterTopLevelOnly);
+			// fldDate.setDefaultValue(sFilterDate);
+			
+			// Add list fields/columns
+			list.addField(idColCompName, 'text', 'Item');
+			list.addField(idColLevel, 'text', 'Level');
+			list.addField(idColQtyPerAss, 'text', 'Qty/Assembly');
+			list.addField(idColUom, 'text', 'UOM');
+			list.addField(idColMaterial, 'text', 'Material');
+			list.addField(idColLabor, 'text', 'Labor');
+			list.addField(idColSevice, 'text', 'Service');
+			list.addField(idColSubTotal, 'text', 'Total');
+			list.addField(idColTotal, 'text', 'Total').setDisplayType('hidden');
+			
+			if (sFilterAssembly) {
+				// Clean up values
+				sFilterAssembly = sFilterAssembly ? sFilterAssembly : '0';
+				
+				// Start filtering the main item
+				var recMainItem = nlapiLoadRecord('assemblyitem', sFilterAssembly, {
+					recordmode: 'dynamic'
+				});
+			
+				// Main item values
+				var sItemId = recMainItem.getFieldValue('itemid'),
+					nLevel = self.boldVal(0, 0, true),
+					nQtyPerAss = self.boldVal(1, 0, true),
+					sUom = recMainItem.getFieldText('saleunit'),
+					sUom = self.boldVal(sUom, 0, true);
+					
+				list.setLineItemValue(idColCompName, 1, self.indent(sItemId, 0, {
+					id: sFilterAssembly
+					,type: recMainItem.getRecordType()
+				}));
+				list.setLineItemValue(idColLevel, 1, nLevel);
+				list.setLineItemValue(idColQtyPerAss, 1, nQtyPerAss);
+				list.setLineItemValue(idColUom, 1, sUom);
+				
+				self.loadMembers(sFilterAssembly, list, form);				
+			}	
+						
+			form.addSubmitButton('View report');
+			res.writePage(form);
+		})
+		,loadMembers: (function(id, list, form) {
+			var self = this,
+				sFilterTopLevelOnly = self.sFilterTopLevelOnly,
+				arrMainItems = [];
+			
+			var currentParentCount = 2,
+				currentMaterialTotal = 0,
+				currentLaborTotal = 0,
+				currentServiceTotal = 0,
+				currentSubTotal = 0,
+				currentTotal = 0,
+				currentParentLevel = 0,
+				
+				nMainMaterial = 0,
+				nMainLabor = 0,
+				nMainService = 0,
+				nMainSubTotal = 0,
+				nMainTotal = 0;
+			
+			var _loadAndSet = (function(_id, _nCountStart, _lvl) {
+				var recItem = self.loadRecord(_id);
+				
+				if (recItem) {				
+					var nMemberCount = recItem.getLineItemCount('member');
+										
+					if (nMemberCount > 0) {
+						for (var i = 1; i <= nMemberCount; i++) {
+							var sItemName = recItem.getLineItemText('member', 'item', i),
+								sItemId = recItem.getLineItemValue('member', 'item', i),
+								nQtyPerAss = recItem.getLineItemValue('member', 'quantity', i);
+							
+							// We can't get the other fields so we load the record of the member.
+							var recMemberItem = self.loadRecord(sItemId),
+								sUom = recMemberItem.getFieldText('saleunit');
+																
+							list.setLineItemValue(idColCompName, _nCountStart, self.indent(sItemName, _lvl, {
+								id: sItemId
+								,type: recMemberItem.getRecordType()
+							}));
+							list.setLineItemValue(idColLevel, _nCountStart, self.boldVal((_lvl + 1).toString(), _lvl, true));
+							list.setLineItemValue(idColQtyPerAss, _nCountStart, self.boldVal(nQtyPerAss, _lvl, true));
+							list.setLineItemValue(idColUom, _nCountStart, self.boldVal(sUom, _lvl, true));
+							
+							// Set costs values
+							// Determine what is the value of the costs.
+							var objCost = self.determineCost(recMemberItem, nQtyPerAss, _lvl + 1);					
+						
+							list.setLineItemValue(idColMaterial, _nCountStart, self.boldVal(objCost.material, _lvl, true));
+							list.setLineItemValue(idColLabor, _nCountStart, self.boldVal(objCost.labor, _lvl, true));
+							list.setLineItemValue(idColSevice, _nCountStart, self.boldVal(objCost.service, _lvl, true));
+							list.setLineItemValue(idColSubTotal, _nCountStart, self.boldVal(objCost.subTotal, _lvl, true));
+							list.setLineItemValue(idColTotal, _nCountStart, self.boldVal(objCost.total, _lvl, true));
+							
+							// Set to current total variables
+							if (_lvl + 1 == 1) {
+								currentParentCount = _nCountStart;
+								currentParentLevel = _lvl;
+								currentMaterialTotal = 0;
+								currentLaborTotal = 0;
+								currentServiceTotal = 0;
+								currentSubTotal = 0;
+								currentTotal = 0;
+							} else {
+								currentMaterialTotal += parseFloat(objCost.material);
+								currentLaborTotal += parseFloat(objCost.labor);
+								currentServiceTotal += parseFloat(objCost.service);
+								currentSubTotal += parseFloat(objCost.subTotal);
+								currentTotal += parseFloat(objCost.total);
+								
+								// Set the parent
+								list.setLineItemValue(idColMaterial, currentParentCount, self.boldVal(currentMaterialTotal, currentParentLevel, true));
+								list.setLineItemValue(idColLabor, currentParentCount, self.boldVal(currentLaborTotal, currentParentLevel, true));
+								list.setLineItemValue(idColSevice, currentParentCount, self.boldVal(currentServiceTotal, currentParentLevel, true));
+								list.setLineItemValue(idColSubTotal, currentParentCount, self.boldVal(currentSubTotal, currentParentLevel, true));
+								list.setLineItemValue(idColTotal, currentParentCount, self.boldVal(currentTotal, currentParentLevel, true));							
+							}
+							
+							nMainMaterial += parseFloat(objCost.material);
+							nMainLabor += parseFloat(objCost.labor);
+							nMainService += parseFloat(objCost.service);
+							nMainSubTotal += parseFloat(objCost.subTotal);
+							nMainTotal += parseFloat(objCost.total);	
+						
+							_nCountStart ++;
+							_nCountStart = _loadAndSet(sItemId, _nCountStart, _lvl + 1);
+							
+							/*
+							if (sFilterTopLevelOnly != 'T') {
+								// Recursive method to loop if we found another member of the component.
+								_nCountStart = _loadAndSet(sItemId, _nCountStart, _lvl + 1);	
+							}	
+							//*/		
+						}							
+					}
+				}
+			
+				return _nCountStart;
+			});
+			
+			_loadAndSet(id, 2, 0); // id, count, level	
+			
+			list.setLineItemValue(idColMaterial, 1, self.boldVal(nMainMaterial, 0, true));
+			list.setLineItemValue(idColLabor, 1, self.boldVal(nMainLabor, 0, true));
+			list.setLineItemValue(idColSevice, 1, self.boldVal(nMainService, 0, true));
+			list.setLineItemValue(idColSubTotal, 1, self.boldVal(nMainSubTotal, 0, true));
+			list.setLineItemValue(idColTotal, 1, self.boldVal(nMainTotal, 0, true));
+		})
+		,loadRecord: (function(id) {
+			var recItem = '',
+				arrRecTypes = [
+                    'assemblyitem',
+                    'inventoryitem',
+                    'otherchargeitem',
+                    'lotnumberedassemblyitem',
+                    'serializedassemblyitem',
+                    'serializedinventoryitem',
+                    'serviceitem'
+                ];
+			
+			for (var i = 0; i < arrRecTypes.length; i++) {
+				try {
+					recItem = nlapiLoadRecord(arrRecTypes[i], id, {recordmode: 'dynamic'});
+				} catch (e) {}
+				
+				if (recItem) {
+					break;
+				}
+			}
+			
+			return recItem;
+		})
+		,determineCost: (function(rec, qty, lvl) {
+			var sType = rec.getRecordType(),
+				nCost = rec.getFieldValue('costestimate'),
+				nAvgCost = rec.getFieldValue('averagecost'),
+				sZero = '0',
+				objCost = {
+					material: sZero
+					,labor: sZero
+					,service:sZero
+					,subTotal: sZero
+					,total: sZero
+				};
+			
+			objCost.material = nAvgCost ? parseFloat(nAvgCost) * qty: sZero;
+			objCost.labor = (sType == 'otherchargeitem') ? parseFloat(nCost) * qty: sZero;
+			objCost.service = (sType == 'serviceitem') ? parseFloat(nCost) * qty: sZero;
+			
+			// Compute the total
+			objCost.subTotal = parseFloat(objCost.material) + parseFloat(objCost.labor) + parseFloat(objCost.service);
+			objCost.subTotal = objCost.subTotal ? parseFloat(objCost.subTotal) : sZero;
+			
+			if (qty && parseFloat(objCost.subTotal)) {
+				objCost.total = parseFloat(qty) * parseFloat(objCost.subTotal);
+				objCost.total = objCost.total ? parseFloat(objCost.total) : sZero;
+			}
+			
+			return objCost;
+		})
+		,boldVal: (function(val, lvl, alignRight) {
+			var self = this;
+			
+			val = !lvl ? '<b>' + val + '</b>' : val;
+		
+			if (alignRight) {
+				val = self.alignRight(val);
+			}
+			
+			return val;
+		})
+		,alignRight: (function(val) {
+			return '<p style="text-align: right;">' + val + '</p>';
+		})
+		,indent: (function(val, lvl, obj) {
+			var px = 10 * lvl;
+			
+			if (obj) {
+				var uri = nlapiResolveURL('RECORD', obj.type, obj.id);
+				
+				val = '<a href="' + uri + '" target="_blank">' + val + '</a>';
+			}
+			
+			if (!px) {
+				val = '<b>' + val + '</b>';
+			}
+			
+			return '<p style="margin-left: ' + px + 'px;">' + val + '</p>';
+		})
+		,log: (function(title, details) {
+			nlapiLogExecution('DEBUG', title, details);
+		})
+	};
+})();
+
+/**
+ * @param {nlobjRequest} request Request object
+ * @param {nlobjResponse} response Response object
+ * @returns {Void} Any output is written via response object
+ */
+function suitelet(request, response) {
+	process.init(request, response);
+}
