@@ -1,0 +1,75 @@
+/**
+ * @author alaurito
+ */
+
+/**
+ * Revision History:
+ * 
+ * Date        Fixed Issue    Broken in QA Bundle     Issue Fix Summary
+ * =============================================================================================
+ * 2011/09/20  205347         1.10                    Set subsidiaries of older Payment File Admin
+ *                                                    records (OW account only)
+ * 2012/03/08  217041         GPM Beta - 1.19.2       Support selective update for payment file
+ *                                                    formats
+ */
+
+/**
+ * 1) Store inactive format ids in temporary file
+ *  
+ * @param {Object} fromversion
+ * @param {Object} toversion
+ */
+function beforeUpdate(fromversion, toversion) {
+    nlapiLogExecution('debug', '[ep] Bundle Installation-beforeUpdate', 'Initialize inactive format list...');
+    var tempFileId = (new _2663.FormatUpdater()).StoreInactiveFormats(fromversion);
+    nlapiLogExecution('debug', '[ep] Bundle Installation-beforeUpdate', 'Created inactive format temp file: ' + tempFileId);
+}
+
+/**
+ * 1) Update Payment File Administration record subsidiaries
+ * 2) Initialize native and non-native file formats
+ * 3) Set previously inactive formats as inactive in updated version
+ * 
+ * @param {Object} fromversion
+ * @param {Object} toversion
+ */
+function afterUpdate(fromversion, toversion) {
+    nlapiLogExecution('debug', '[ep] Bundle Installation-afterUpdate', 'Update payment file admin subsidiaries...');
+    updatePaymentFileAdminSubs();
+    nlapiLogExecution('debug', '[ep] Bundle Installation-afterUpdate', 'Initialize payment file formats...');
+    var formatUpdater = new _2663.FormatUpdater();
+    var numFormatsInitialized = formatUpdater.InitializeFileFormats();
+    nlapiLogExecution('debug', '[ep] Bundle Installation-afterUpdate', 'Number of initialized formats: ' + numFormatsInitialized);
+    nlapiLogExecution('debug', '[ep] Bundle Installation-afterUpdate', 'Reset inactive formats...');
+    var updatedInactiveFormatCount = formatUpdater.ResetInactiveFormats(fromversion);
+    nlapiLogExecution('debug', '[ep] Bundle Installation-afterUpdate', 'Number of updated inactive formats: ' + updatedInactiveFormatCount);
+}
+
+/**
+ * If OW, update subsidiaries of older Payment File Administration records based on their Bank Account subsidiaries
+ */
+function updatePaymentFileAdminSubs() {
+    if (isOneWorld()) {
+        // update subsidiaries of older payment file admin records
+        var filters = new nlobjSearchFilter('custrecord_2663_payment_subsidiary', null, 'anyof', '@NONE@');
+        var columns = new nlobjSearchColumn('custrecord_2663_subsidiary', 'custrecord_2663_bank_account');
+        var searchResults = nlapiSearchRecord('customrecord_2663_file_admin', 'customsearch_2663_payment_file_admin', filters, columns);
+        
+        var ctr = 0;
+        if (searchResults) {
+            nlapiLogExecution('debug', '[ep] Bundle Installation-updatePaymentFileAdminSubs', 'Updating payment file admin records... Count : ' + searchResults.length);
+            for (var i = 0; i < searchResults.length; i++) {
+                try {
+                    var subsidiary = searchResults[i].getValue('custrecord_2663_subsidiary', 'custrecord_2663_bank_account');
+                    nlapiSubmitField('customrecord_2663_file_admin', searchResults[i].getId(), 'custrecord_2663_payment_subsidiary', subsidiary);
+                    ctr++;
+                } 
+                catch (ex) {
+                    nlapiLogExecution('error', '[ep] Bundle Installation-updatePaymentFileAdminSubs', 'Error updating subsidiary for payment file record : ' + searchResults[i].getId());
+                }
+            }
+        }
+        
+        nlapiLogExecution('debug', '[ep] Bundle Installation-updatePaymentFileAdminSubs', 'Number of updated payment file admin records: ' + ctr);
+    }
+}
