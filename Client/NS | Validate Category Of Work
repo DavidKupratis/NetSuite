@@ -1,0 +1,41 @@
+/**
+
+* 
+*/
+function validateLine_CategoryOfWork(type)
+{
+    try
+    {
+        if(type!='expense')
+        {
+            return true;
+        }
+        
+        return validateCategoryOfWork(type);
+    }
+    catch (error)
+    {
+        if (error.getDetails != undefined)
+        {
+            nlapiLogExecution('ERROR','Process Error',error.getCode() + ': ' + error.getDetails());
+            throw error;
+        }
+        else
+        {
+            nlapiLogExecution('ERROR','Unexpected Error',error.toString());
+            throw nlapiCreateError('99999', error.toString());
+        }
+    }
+}
+
+function validateCategoryOfWork(type)
+{
+    var stCatOfWrk = nlapiGetCurrentLineItemValue(type,'custcol_cow');
+    
+    if(!stCatOfWrk || stCatOfWrk=='')
+    {
+        alert('Please make a selection for Category of Work');
+        return false;
+    }
+    return true;
+}
