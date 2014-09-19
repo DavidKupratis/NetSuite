@@ -1,0 +1,146 @@
+
+
+/* Asset Status List */
+var ASSET_STATUS_NEW = '6';
+var ASSET_STATUS_DEPRECIATING = '2';
+var ASSET_STATUS_FULLY_DEP = '3';
+var ASSET_STATUS_DISPOSED = '4';
+var ASSET_STATUS_SPLITTING = '7';
+var ASSET_STATUS_PARTIALLY_DISP = '8';
+
+/* Asset Deprecation Active */
+var ASSET_DEPR_ACTIVE = '1';
+var ASSET_DEPR_NOTACTIVE = '2';
+var ASSET_DEPR_ONPROJCOMPLETION = '3';
+
+/* Depreciation Period */
+var DEPR_PERIOD_MONTHLY = '1';
+var DEPR_PERIOD_ANNUALLY = '2';
+var DEPR_PERIOD_FISCALPERIOD = '3';
+var DEPR_PERIOD_FISCALYEAR = '4';
+
+/* Accrual Convention */
+var ACCRUAL_CONVENTION_FORMULARESULT = '1';
+var ACCRUAL_CONVENTION_ACTUALPERIOD = '2';
+
+/* Period Convention */
+var PERIOD_CONVENTION_12MONTHS = '1';
+var PERIOD_CONVENTION_EXACTNUMBER = '2';
+
+/* Final Period Convention */
+var FINAL_CONVENTION_FULLYDEPRECIATE = '1';
+var FINAL_CONVENTION_RETAINBALANCE = '2';
+
+
+/* Account Types */
+var ACCOUNT_TYPE_FIXEDASSET = 'FixedAsset';
+var ACCOUNT_TYPE_BANK = 'Bank';
+var ACCOUNT_TYPE_EQUITY = 'Equity';
+var ACCOUNT_TYPE_DEFERREDEXPENSE = 'DeferExpense';
+var ACCOUNT_TYPE_EXPENSE = 'Expense';
+var ACCOUNT_TYPE_OTHEREXPENSE = 'OthExpense';
+var ACCOUNT_TYPE_INCOME = 'Income';
+var ACCOUNT_TYPE_OTHERINCOME = 'OthIncome';
+var ACCOUNT_TYPE_NONPOSTING = 'NonPosting';
+
+/* List - FAM Used Accounts */
+//var FAM_USED_ASSETACCOUNT = '1';
+var ACCOUNT_USED_ASSET = '1';
+//var FAM_USED_DEPRACCOUNT = '2';
+var ACCOUNT_USED_DEPRECIATION = '2';
+//var FAM_USED_DEPEXPENSE = '3';
+var ACOUNT_USED_DEPREXPENSE = '3';
+//var FAM_USED_WRITEOFFACCOUNT = '4';
+var ACCOUNT_USED_WRITEOFF = '4';
+//var FAM_USED_WRITEDOWNNACCOUNT = '5';
+var ACCOUNT_USED_WRITEDOWNN = '5';
+//var FAM_USED_DISPOSALACCOUNT = '6';
+var ACCOUNT_USED_DISPOSAL = '6';
+//var FAM_USED_ALL = '1,2,3,4,5,6';
+var ACCOUNT_USED_ALL = '1,2,3,4,5,6';
+
+/* List - FAM Asset Proposal Status */
+//var FAM_PROPSTATUS_NEW = '1';
+var PROPOSAL_STATUS_NEW = '1';
+//var FAM_PROPSTATUS_PENDING = '2';
+var PROPOSAL_STATUS_PENDING = '2';
+//var FAM_PROPSTATUS_CREATED = '3';
+var PROPOSAL_STATUS_CREATED = '3';
+//var FAM_PROPSTATUS_REJECTED = '4';
+var PROPOSAL_STATUS_REJECTED = '4';
+//var FAM_PROPSTATUS_COMBINED = '5';
+var PROPOSAL_STATUS_COMBINED = '5';
+
+/* List - Transaction Type */
+var TRANSACTION_TYPE_ACQUISITION = '1';
+var TRANSACTION_TYPE_DEPRECIATION = '2';
+var TRANSACTION_TYPE_SALEORDISPOSAL = '3';
+var TRANSACTION_TYPE_WRITEDOWN = '4';
+var TRANSACTION_TYPE_REVALUATION = '5';
+
+/* List - Revision Rules */
+var REVISION_REMAINING_LIFE = '1';
+var REVISION_CURRENT_PERIOD = '2';
+
+/* global regular expression for finding function terms */
+//var ncFnTerms = /[~\(\)\^\*\/\+\-]|[0-9]+(\.[0-9]+)?|OC|NB|RV|AL|CP|TD|CU|LU|LD|CC|DH|PB/gi;	// PSG 4807, 2011-07-11
+var REGEX_FUNCTION_SEARCH = /[~\(\)\^\*\/\+\-]|[0-9]+(\.[0-9]+)?|OC|NB|RV|AL|CP|TD|CU|LU|LD|CC|DH|PB/gi;
+
+//ncConst.BGP_ProcessInstance = 'customrecord_bg_procinstance';	/* record type for Process Instance */
+var REC0RD_BGP_PROCESSINSTANCE = 'customrecord_bg_procinstance';	/* record type for Process Instance */
+//ncConst.BGP_ProcessLog = 'customrecord_bg_proclog';				/* record type for Process Log */
+var REC0RD_BGP_PROCESSLOG = 'customrecord_bg_proclog';				/* record type for Process Log */
+//ncConst.FAR_SystemSetup = 'customrecord_ncfar_systemsetup';			/* record type for System Setup */
+var REC0RD_FAM_SYSTEMSETUP = 'customrecord_ncfam_systemsetup';			/* record type for System Setup */
+//ncConst.FAR_AssetType = 'customrecord_ncfar_assettype';				/* record type for Asset Type */
+var REC0RD_FAM_ASSETTYPE = 'customrecord_ncfam_assettype';				/* record type for Asset Type */
+//ncConst.FAR_DeprMethod = 'customrecord_ncfar_deprmethod';			/* record type for Deprecation Method */
+var REC0RD_FAM_DEPRMETHOD = 'customrecord_ncfam_deprmethod';			/* record type for Deprecation Method */
+//ncConst.FAR_Asset = 'customrecord_ncfar_asset';						/* record type for Asset */
+var REC0RD_FAM_ASSET = 'customrecord_ncfam_asset';						/* record type for Asset */
+//ncConst.FAR_Proposal = 'customrecord_ncfar_assetproposal';			/* record type for Asset Proposal */
+var REC0RD_FAM_PROPOSAL = 'customrecord_ncfam_assetproposal';			/* record type for Asset Proposal */
+//ncConst.FAR_AssetUsage = 'customrecord_ncfar_assetusage';			/* record type for Asset Usage */
+var REC0RD_FAM_ASSETUSAGE = 'customrecord_ncfam_assetusage';			/* record type for Asset Usage */
+//ncConst.FAR_DeprHistory = 'customrecord_ncfar_deprhistory';			/* record type for Depreciation History */
+var REC0RD_FAM_DEPRHISTORY = 'customrecord_ncfam_deprhistory';			/* record type for Depreciation History */
+//ncConst.FAR_XferAccounts = 'customrecord_ncfar_transferaccounts';	/* record type for Asset Transfer Accounts */
+var REC0RD_FAM_XFERACCOUNTS = 'customrecord_ncfam_transferaccounts';	/* record type for Asset Transfer Accounts */
+//ncConst.BGP_ProcInstIdParam = 'custscript_bgp_procinstid';			/* parameter name for Process Instance Id on scheduled script deployments */
+var SCRIPT_BGP_PROCINSTIDPARAM = 'custscript_bgp_procinstid';			/* parameter name for Process Instance Id on scheduled script deployments */
+//ncConst.BGP_FunctionNameParam = 'custscript_bgp_processfunction';	/* parameter name for Function Name on scheduled script deployments */
+var SCRIPT_BGP_FUNCTIONNAMEPARAM = 'custscript_bgp_processfunction';	/* parameter name for Function Name on scheduled script deployments */
+//ncConst.BGP_StartupScriptId = 'customscript_ncfar_bgp_startup';		/* script id for background execution startup */
+var SCRIPT_BGP_STARTUPSCRIPTID = 'customscript_ncfam_bgp_startup';		/* script id for background execution startup */
+//ncConst.BGP_StartupDeployId = 'customdeploy_ncfar_bgp_startup_sd1';	/* deployment id for background execution startup */
+var DEPLOY_BGP_STARTUPDEPLOYID = 'customdeploy_ncfam_bgp_startup_sd1';	/* deployment id for background execution startup */
+//ncConst.NC_ProcessActivity = '';	/* (old) record type for Process Activity */
+//ncConst.NC_ProcessActivity = 'customrecord_ncbgp_processcontrol'; /* record type for Process Activity */
+var RECORD_fam_PROCESSACTIVITY = '';	/* (old) record type for Process Activity */
+//ncConst.NC_ProcessLog = '';			/* (old) record type for Process Log */
+//ncConst.NC_ProcessLog = 'customrecord_ncbgp_processlog'; /* record type for Process Log */
+var RECORD_FAM_PROCESSLOG = '';			/* (old) record type for Process Log */
+//ncConst.BGP_ProcessIdParam = 'custscript_bgp_processid';			/* (old) parameter name for Process Id on scheduled script deployments */
+var SCRIPT_BGP_PROCESSIDPARAM = 'custscript_bgp_processid';			/* (old) parameter name for Process Id on scheduled script deployments */
+//ncConst.BGP_ProcessIdParam2 ='custscript_bgp_startprocessid';		/* (old) parameter name for Process Id on additional scheduled script deployments */
+var SCRIPT_BGP_PROCESSIDPARAM2 ='custscript_bgp_startprocessid';		/* (old) parameter name for Process Id on additional scheduled script deployments */
+//ncConst.FAR_AltDepr = 'customrecord_ncfar_altdepreciation';			/* record type for new Alternate Depreciation */
+var RECORD_FAM_ALTDEPR = 'customrecord_ncfam_altdepreciation';			/* record type for new Alternate Depreciation */
+//ncConst.FAM_AltMethods = 'customrecord_ncfar_altmethods';			/* record type for new Alternate Methods */
+var RECORD_FAM_ALTMETHODS = 'customrecord_ncfam_altmethods';			/* record type for new Alternate Methods */
+//ncConst.BGP_StartupDeployId2 = 'customdeploy_ncfar_bgp_startup_sd2';	/* deployment id for background execution startup */
+var DEPLOY_BGP_STARTUPDEPLOYID2 = 'customdeploy_ncfam_bgp_startup_sd2';	/* deployment id for background execution startup */
+
+
+/* Additional Constants */
+var CONTEXT_LOCATION = 'LOCATIONS';;
+var CONTEXT_DEPARTMENTS = 'DEPARTMENTS';
+var CONTEXT_CLASSES = 'CLASSES';
+
+/* Client Script */ 
+var PROGRESSS_BAR_REFRESHRATE = 3; //In seconds
+
+/* ExtJs Standards */
+var FILE_CSS_OVERRIDE = 'fam_extjs_override.css';
+var EXTJS_MESSAGEBOX_WIDTH = 150;
+var EXTJS_PROGRESSBAR_WIDTH = 600;
