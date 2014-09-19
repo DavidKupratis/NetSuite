@@ -1,0 +1,523 @@
+var arrJSON = {};
+function retrieveSummarySearchResult(datain)
+{
+	try
+	{
+		nlapiLogExecution('AUDIT', 'ACTIVITY', 'Script Started...');
+		var strYear = getYearId(datain.year);
+		var strLevel = datain.level;
+		
+		nlapiLogExecution('AUDIT', 'VALUE', 'Year: '+strYear);
+		nlapiLogExecution('AUDIT', 'VALUE', 'Level: '+strLevel);
+		
+		callRetrieveActualAmountFromJournal(strYear, strLevel, datain.year);
+		callRetrieveActualAmountFromVendorBill(strYear, strLevel, datain.year);
+		callRetrieveBudgetAmount(strYear, strLevel, datain.year)
+		var strRetData = JSON.stringify(arrJSON);
+		nlapiLogExecution('AUDIT', 'ACTIVITY', 'Script Ended Sucessfully');
+		return strRetData.replace(/\\/g,'');
+	}catch(error) 
+    {
+       if (error.getDetails != undefined) 
+       {
+           nlapiLogExecution('ERROR', 'Process Error', error.getCode() + ': ' + error.getDetails());
+           throw error;
+       }
+       else 
+       {    
+           nlapiLogExecution('ERROR', 'Unexpected Error', error.toString());
+           throw nlapiCreateError('99999', error.toString());
+       }
+    }
+}
+
+function getYearId(strYear)
+{
+	var filters = new Array();
+	filters[filters.length] = new nlobjSearchFilter('periodname', null, 'contains', strYear);
+	filters[filters.length] = new nlobjSearchFilter('isquarter', null, 'is', 'F');
+	filters[filters.length] = new nlobjSearchFilter('isyear', null, 'is', 'T');
+
+	var column = new Array();
+	column.push(new nlobjSearchColumn('internalid'));
+	
+	var searchResults = nlapiSearchRecord('accountingperiod', null, filters, column);
+	return searchResults[0].getValue(column[0]);
+}
+
+function callRetrieveBudgetAmount(strYear, strLevel, strDataInYear)
+{
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'callRetrieveBudgetAmount Script Started...');
+	var arrResultParent = new Array();
+	var arrFilters = new Array();
+	arrFilters.push(new nlobjSearchFilter('custrecord_division_level', null, 'is', strLevel));
+	
+	var arrColumns = new Array();
+	arrColumns.push(new nlobjSearchColumn('name'));
+	arrColumns.push(new nlobjSearchColumn('internalid'));
+	
+	//var arrResult = nlapiSearchRecord('department', null, arrFilters, arrColumns);
+	var arrResult = getDivisions('department', arrFilters, arrColumns);
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'Num Divisions: ' + arrResult.length);
+	//var arrResultWS = startSuiteTalkCall(strYear, strDataInYear, arrResult);
+	var arrResultWS = new Array();
+	for (var i=0; i<5; i++)
+	{
+		var arrResultToSearch = arrResult.slice(0 + (1000*i), 1000 + (1000*i));
+		nlapiLogExecution('AUDIT', 'System', 'Results: ' + i + ' | length: ' + arrResultToSearch.length);
+
+		if (arrResultToSearch != null && arrResultToSearch.length > 0)
+		{
+			arrResultWS = arrResultWS.concat(startSuiteTalkCall(strYear, strDataInYear, arrResultToSearch));
+		}
+	}
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'arrResult.length: ' + arrResult.length + ' | arrResultWS.length: ' + arrResultWS.length);
+	var ctr = 0;
+	/*for(var x=0;x<arrResult.length;x++)
+	{
+		var strDepName = arrResult[x].getValue(arrColumns[0]);
+		var strDepartment = arrResult[x].getValue(arrColumns[1]);
+		for(var y=0;y<arrResultWS.length;y++)
+		{
+			if(strDepName == arrResultWS[y][0])
+			{
+				arrResultWS[y][1] = strDepartment;
+				arrResultParent[ctr] = arrResultWS[y];
+				ctr++;
+			}
+		}
+	}*/
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'arrResultParent.length: ' + arrResultWS.length);
+	//arrJSON['budgetListByDivision'] = formatResult(arrResultParent)
+	arrJSON['budgetListByDivision'] = formatResult(arrResultWS);
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'callRetrieveBudgetAmount Ended Sucessfully');
+}
+
+function startSuiteTalkCall(strYear, strDataInYear, arrResult)
+{
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'startSuiteTalkCall Script Started...');
+
+	var stEnv = nlapiGetContext().getEnvironment();
+
+	var stEnvURL = stEnv == 'SANDBOX' ? 'sandbox.' : '';
+
+	var stWSUrl = 'https://webservices.' + stEnvURL + 'netsuite.com/services/NetSuitePort_2011_2';
+
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'startSuiteTalkCall WSURL: ' + stWSUrl + ' | ' + stEnv + ' | ' + stEnvURL);
+	
+	var stRequest = '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">' +
+        '<soapenv:Header>'+
+        '<platformMsgs:applicationInfo xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:platformMsgs="urn:messages_2011_2.platform.webservices.netsuite.com" xmlns:xsd="http://www.w3.org/2001/XMLSchema"/>' +
+        '<platformMsgs:partnerInfo xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:platformMsgs="urn:messages_2011_2.platform.webservices.netsuite.com" xmlns:xsd="http://www.w3.org/2001/XMLSchema"/>' +
+            '<ns1:passport soapenv:mustUnderstand="0" soapenv:actor="http://schemas.xmlsoap.org/soap/actor/next" xmlns:ns1="urn:messages_2011_2.platform.webservices.netsuite.com">'+
+	'<ns2:email xmlns:ns2="urn:core_2011_2.platform.webservices.netsuite.com">ci.integration@sorosny.org</ns2:email>'+
+          '<ns3:password xmlns:ns3="urn:core_2011_2.platform.webservices.netsuite.com">Nhyujm1@</ns3:password>'+
+           '<ns4:account xmlns:ns4="urn:core_2011_2.platform.webservices.netsuite.com">1106716</ns4:account>'+
+            '<ns5:role internalId="18" xmlns:ns5="urn:core_2011_2.platform.webservices.netsuite.com"/>'+
+	        '</ns1:passport>'+
+           '</soapenv:Header>'+
+           '<soapenv:Body>'+
+              '<platformMsgs:search xsi:type="ns6:BudgetSearch" xmlns:ns6="urn:financial_2011_2.transactions.webservices.netsuite.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:platformMsgs="urn:messages_2011_2.platform.webservices.netsuite.com" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:platformCore="urn:core_2011_2.platform.webservices.netsuite.com">'+
+	'<ns6:basic xsi:type="ns7:BudgetSearchBasic" xmlns:ns7="urn:common_2011_2.platform.webservices.netsuite.com">'+
+                '<ns7:year xsi:type="ns9:SearchMultiSelectField" operator="anyOf" xmlns:ns9="urn:core_2011_2.platform.webservices.netsuite.com">'+
+                    '<ns9:searchValue xsi:type="ns9:RecordRef" internalId="'+strYear+'"/>'+
+                '</ns7:year>'+
+				'<ns7:department xsi:type="ns9:SearchMultiSelectField" operator="anyOf" xmlns:ns9="urn:core_2011_2.platform.webservices.netsuite.com">';
+	var intDivisionsToSearch = Math.min(arrResult.length, 1000);
+	for (var i=0; i<intDivisionsToSearch; i++)
+	{
+		var result = arrResult[i];
+		stRequest += '<ns9:searchValue xsi:type="ns9:RecordRef" internalId="'+result.getId()+'"/>';
+	}
+	stRequest +=			'</ns7:department>'+
+            '</ns6:basic>'+
+              '</platformMsgs:search>'+
+           '</soapenv:Body>'+
+        '</soapenv:Envelope>';
+		
+	var soapHeaders = new Array();  
+	soapHeaders['User-Agent-x'] = 'SuiteScript-Call';
+	soapHeaders['SOAPAction'] = 'search';
+	soapHeaders['Host'] = "webservices." + stEnvURL + "netsuite.com";
+		
+	var soapResponse = nlapiRequestURL(stWSUrl, stRequest, soapHeaders);
+	var soapResponseXML = soapResponse.getBody();
+	
+	
+		
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'startSuiteTalkCall Ended Sucessfully');
+	
+	//return parseResponse(soapResponseXML, strDataInYear);
+	var arrResults = new Array();
+	arrResults = arrResults.concat(parseResponse(soapResponseXML, strDataInYear));
+
+	var responseXML = nlapiStringToXML(soapResponseXML);
+	var arrResponseNode = nlapiSelectNode(responseXML, '//*[name()=\'platformCore:searchResult\']');
+	var stTotalRecords = nlapiSelectValue(arrResponseNode, 'platformCore:totalRecords');
+	var intTotalRecords = stTotalRecords ? parseInt(stTotalRecords) : 0;
+	var stTotalPages = nlapiSelectValue(arrResponseNode, 'platformCore:totalPages');
+	var intTotalPages = stTotalPages ? parseInt(stTotalPages) : 0;
+	var stPageIndex = nlapiSelectValue(arrResponseNode, 'platformCore:pageIndex');
+	var intPageIndex = stPageIndex ? parseInt(stPageIndex) : 0;
+	var stPageSize = nlapiSelectValue(arrResponseNode, 'platformCore:pageSize');
+	var intPageSize = stPageSize ? parseInt(stPageSize) : 0;
+	var stSearchId = nlapiSelectValue(arrResponseNode, 'platformCore:searchId');
+	nlapiLogExecution('AUDIT', 'Response Size', 'stTotalRecords: ' + stTotalRecords + ' | stTotalPages: ' + stTotalPages + 
+						' | stPageIndex: ' + stPageIndex + ' | stPageSize: ' + stPageSize + ' | stSearchId: ' + stSearchId);
+
+	if (intTotalPages > intPageIndex)
+	{
+		nlapiLogExecution('AUDIT', 'Response Size', 'Need to search more');
+		for (var j=(intPageIndex + 1); j<=intTotalPages; j++)
+		{
+			arrResults = arrResults.concat(suiteTalkSearchMoreWithId(stSearchId, j, strDataInYear, stEnvURL));
+		}
+	}
+
+	return arrResults;
+
+}
+
+function suiteTalkSearchMoreWithId(stSearchID, stPageIndex, strDataInYear, stEnvURL)
+{
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'suiteTalkSearchMoreWithId Script Started...');
+
+	var stWSUrl = 'https://webservices.' + stEnvURL + 'netsuite.com/services/NetSuitePort_2011_2';
+
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'suiteTalkSearchMoreWithId WSURL: ' + stWSUrl);
+	
+	var stRequest = '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">' +
+        '<soapenv:Header>'+
+        '<platformMsgs:applicationInfo xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:platformMsgs="urn:messages_2011_2.platform.webservices.netsuite.com" xmlns:xsd="http://www.w3.org/2001/XMLSchema"/>' +
+        '<platformMsgs:partnerInfo xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:platformMsgs="urn:messages_2011_2.platform.webservices.netsuite.com" xmlns:xsd="http://www.w3.org/2001/XMLSchema"/>' +
+            '<ns1:passport soapenv:mustUnderstand="0" soapenv:actor="http://schemas.xmlsoap.org/soap/actor/next" xmlns:ns1="urn:messages_2011_2.platform.webservices.netsuite.com">'+
+	'<ns2:email xmlns:ns2="urn:core_2011_2.platform.webservices.netsuite.com">ci.integration@sorosny.org</ns2:email>'+
+          '<ns3:password xmlns:ns3="urn:core_2011_2.platform.webservices.netsuite.com">Nhyujm1@</ns3:password>'+
+           '<ns4:account xmlns:ns4="urn:core_2011_2.platform.webservices.netsuite.com">1106716</ns4:account>'+
+            '<ns5:role internalId="3" xmlns:ns5="urn:core_2011_2.platform.webservices.netsuite.com"/>'+
+	        '</ns1:passport>'+
+           '</soapenv:Header>'+
+           '<soapenv:Body>'+
+              '<platformMsgs:searchMoreWithId xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:platformMsgs="urn:messages_2011_2.platform.webservices.netsuite.com" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:platformCore="urn:core_2011_2.platform.webservices.netsuite.com">'+
+                '<platformMsgs:searchId>'+ stSearchID + '</platformMsgs:searchId>'
+                '<platformMsgs:pageIndex>'+ stPageIndex + '</platformMsgs:pageIndex>'
+              '</platformMsgs:searchMoreWithId>'+
+           '</soapenv:Body>'+
+        '</soapenv:Envelope>';
+
+	var stRequest = '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">' +
+			   '<soapenv:Header>' + 
+				  '<platformMsgs:passport xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' + 
+					  ' xmlns:platformCore="urn:core_2012_1.platform.webservices.netsuite.com" xmlns:platformMsgs="urn:messages_2012_1.platform.webservices.netsuite.com">' +
+					 '<platformCore:email>victoria.filoteo@accenture.com</platformCore:email>' + 
+					 '<platformCore:password>Castiron1</platformCore:password>' +
+					 '<platformCore:account>1106716</platformCore:account>' +
+				  '</platformMsgs:passport>' +
+				  '<platformMsgs:applicationInfo xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsd="http://www.w3.org/2001/XMLSchema"' +
+					' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:platformMsgs="urn:messages_2012_1.platform.webservices.netsuite.com" />' + 
+				  '<platformMsgs:partnerInfo xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsd="http://www.w3.org/2001/XMLSchema"' + 
+					' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:platformMsgs="urn:messages_2012_1.platform.webservices.netsuite.com" />' +
+			   '</soapenv:Header>' + 
+			   '<soapenv:Body>' + 
+				  '<platformMsgs:searchMoreWithId xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:xsd="http://www.w3.org/2001/XMLSchema"' +
+					  ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:platformMsgs="urn:messages_2012_1.platform.webservices.netsuite.com">' + 
+					 '<platformMsgs:searchId>' + stSearchID + '</platformMsgs:searchId>' +
+					 '<platformMsgs:pageIndex>' + stPageIndex + '</platformMsgs:pageIndex>' +
+				  '</platformMsgs:searchMoreWithId>' + 
+			   '</soapenv:Body>' + 
+			'</soapenv:Envelope>';
+		
+	var soapHeaders = new Array();  
+	soapHeaders['User-Agent-x'] = 'SuiteScript-Call';
+	soapHeaders['SOAPAction'] = 'searchMoreWithId';
+	soapHeaders['Host'] = "webservices.netsuite.com";
+		
+	var soapResponse = nlapiRequestURL(stWSUrl, stRequest, soapHeaders);
+	var soapResponseXML = soapResponse.getBody();
+	
+	
+		
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'startSuiteTalkCall Ended Sucessfully');
+	
+	return parseResponse(soapResponseXML, strDataInYear);
+}
+
+function parseResponse(soapResponseXML, strDataInYear)
+{
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'parseResponse Script Started...');
+	nlapiLogExecution('AUDIT', 'ACTIVITY', soapResponseXML);
+	var arrResultParent = new Array();
+	var responseXML = nlapiStringToXML(soapResponseXML);
+	if (responseXML == null || responseXML.length == 0)
+	{
+		nlapiLogExecution('AUDIT', 'Exit parseResponse', 'responseXML: ' + responseXML);
+		return arrResultParent;
+	}
+	var arrResponseNode = nlapiSelectNode(responseXML, '//*[name()=\'platformCore:searchResult\']');
+	if (arrResponseNode == null || arrResponseNode.length == 0)
+	{
+		nlapiLogExecution('AUDIT', 'Exit parseResponse', 'No Nodes: ' + arrResponseNode);
+		return arrResultParent;
+	}
+	var stTotalRecords = nlapiSelectValue(arrResponseNode, 'platformCore:totalRecords');
+	var stTotalPages = nlapiSelectValue(arrResponseNode, 'platformCore:totalPages');
+	var stPageIndex = nlapiSelectValue(arrResponseNode, 'platformCore:pageIndex');
+	var stSearchId = nlapiSelectValue(arrResponseNode, 'platformCore:searchId');
+	nlapiLogExecution('AUDIT', 'Response Size', 'stTotalRecords: ' + stTotalRecords + ' | stTotalPages: ' + stTotalPages + 
+						' | stPageIndex: ' + stPageIndex + ' | stSearchId: ' + stSearchId);
+	/*var arrFields = ['tranFin:year', 'tranFin:class', 'tranFin:department', 
+					'tranFin:location', 'tranFin:account', 'tranFin:subsidiary', 
+					'tranFin:category', 'tranFin:budgetType', 'tranFin:currency', 
+					'tranFin:amount'];*/
+	var arrFields = ['tranFin:year', 'tranFin:department', 'tranFin:amount'];
+	var nodes = nlapiSelectNodes(responseXML, '//*[name()=\'platformCore:record\']');  
+	nlapiLogExecution('AUDIT', 'VALUE', 'nodes: '+nodes.length);    
+	for(var x=0;x<nodes.length;x++)
+	{
+		var arrResultDetails = new Array();
+		
+		for(var y=0;y<arrFields.length;y++)
+		{
+			var field = nlapiSelectNode(nodes[x], arrFields[y]); 
+			var value = nlapiSelectValue(nodes[x], arrFields[y]);
+			if(value == '')
+			{
+				value = nlapiSelectValue(field, 'platformCore:name');
+				
+			}
+
+			if(y==arrFields.length-1)
+			{
+				var exponential = value.split('E');
+				var dblAmount = 0;
+				if(exponential.length > 1)
+				{
+					dblAmount = parseFloat(exponential[0]);
+					var maxZero = exponential[1];
+					var multiplier = '1';
+					for(var z=0;z<maxZero;z++)
+					{
+						multiplier += '0';
+					}
+					value = dblAmount * parseInt(multiplier);
+				}
+				else
+				{
+					value = parseFloat(value);
+				}
+				
+			}
+			var value2 = '';
+			if (y == 1)
+			{
+				//value2 = nlapiSelectValue(field, 'platformCore:name');
+				//arrResultDetails[1] = value2;
+				var stDeptID = nlapiSelectValue(nlapiSelectNode(nodes[x], arrFields[y]), '@internalId');
+				arrResultDetails[1] = stDeptID;
+				//nlapiLogExecution('AUDIT', 'stDeptID', 'stDeptID: ' + stDeptID);
+			}
+			
+			//nlapiLogExecution('DEBUG', 'VALUE', arrFields[y]+': '+value);
+	
+			switch(y)
+			{
+				case 0: arrResultDetails[2] = strDataInYear; break; //value; break;
+				case 1: arrResultDetails[0] = value; break;
+				case 2: arrResultDetails[3] = value; break;
+			}
+		}
+		arrResultParent[x] = arrResultDetails;
+	}
+	
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'parseResponse Ended Sucessfully');
+	return arrResultParent;
+}
+
+function callRetrieveActualAmountFromVendorBill(strYear, strLevel, strDataInYear)
+{
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'callRetrieveActualAmountFromVendorBill Script Started...');
+	var arrResultParent = new Array();
+	var arrFilters = new Array();
+	arrFilters.push(new nlobjSearchFilter('postingperiod', null, 'is', strYear));
+	arrFilters.push(new nlobjSearchFilter('custrecord_division_level', 'department', 'is', strLevel));
+	arrFilters.push(new nlobjSearchFilter('status', null, 'is', 'VendBill:B'));
+	//arrFilters.push(new nlobjSearchFilter('custcol_grant_id', null, 'isnotempty'));
+	arrFilters.push(new nlobjSearchFilter('custcol_grant_id', null, 'noneof', '@NONE@'));
+	
+		
+	var arrColumns = new Array();
+	//arrColumns.push(new nlobjSearchColumn('periodname', 'accountingperiod'));
+	arrColumns.push(new nlobjSearchColumn('custrecord_division_level', 'department', 'group'));
+	arrColumns.push(new nlobjSearchColumn('name', 'department', 'group'));
+	arrColumns.push(new nlobjSearchColumn('amount', null, 'sum'));
+	arrColumns.push(new nlobjSearchColumn('department', null, 'group'));
+	
+	var arrResult = nlapiSearchRecord('vendorbill', null, arrFilters, arrColumns);
+	if(arrResult != null)
+	{
+		nlapiLogExecution('AUDIT', 'ACTIVITY', 'arrResult VB length: ' + arrResult.length);
+		for(var x=0;x<arrResult.length;x++)
+		{
+			var arrResultDetails = new Array();
+			var arrResultCols = arrResult[x];
+			arrResultDetails[1] = arrResultCols.getValue(arrColumns[3]);
+			arrResultDetails[0] = arrResultCols.getValue(arrColumns[1]);
+			arrResultDetails[2] = strDataInYear; //arrResultCols.getValue(arrColumns[0]);
+			arrResultDetails[3] = parseFloat(arrResultCols.getValue(arrColumns[2]));
+			arrResultParent[x] = arrResultDetails;
+		}
+	}
+	//arrJSON['actualListByDivision'] = formatResult(arrResultParent);
+	arrJSON['actualListByDivision'] = convertToJSON(arrResultParent);
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'callRetrieveActualAmountFromVendorBill Ended Sucessfully');
+}
+
+function callRetrieveActualAmountFromJournal(strYear, strLevel, strDataInYear)
+{
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'callRetrieveActualAmountFromJournal Script Started...');
+	var arrResultParent = new Array();
+	var arrFilters = new Array();
+	arrFilters.push(new nlobjSearchFilter('postingperiod', null, 'is', strYear));
+	arrFilters.push(new nlobjSearchFilter('custrecord_division_level', 'department', 'is', strLevel));
+	arrFilters.push(new nlobjSearchFilter('debitamount', null, 'greaterthan', 0));
+	arrFilters.push(new nlobjSearchFilter('status', null, 'is', 'Journal:B'));	
+	
+	var arrColumns = new Array();
+	//arrColumns.push(new nlobjSearchColumn('periodname', 'accountingperiod'));
+	arrColumns.push(new nlobjSearchColumn('custrecord_division_level', 'department', 'group'));
+	arrColumns.push(new nlobjSearchColumn('name', 'department', 'group'));
+	arrColumns.push(new nlobjSearchColumn('debitamount', null, 'sum'));
+	arrColumns.push(new nlobjSearchColumn('department', null, 'group'));	
+	
+	var arrResult = nlapiSearchRecord('journalentry', null, arrFilters, arrColumns);
+	if(arrResult != null)
+	{
+		nlapiLogExecution('AUDIT', 'ACTIVITY', 'arrResult JE length: ' + arrResult.length);
+		for(var x=0;x<arrResult.length;x++)
+		{
+
+			var arrResultDetails = new Array();
+			var arrResultCols = arrResult[x];
+			arrResultDetails[1] = arrResultCols.getValue(arrColumns[3]);
+			arrResultDetails[0] = arrResultCols.getValue(arrColumns[1]);
+			arrResultDetails[2] = strDataInYear; //arrResultCols.getValue(arrColumns[0]);
+			arrResultDetails[3] = parseFloat(arrResultCols.getValue(arrColumns[2]));
+			arrResultParent[x] = arrResultDetails;
+		}
+	}
+	nlapiLogExecution('AUDIT', 'arrResultParent', 'arrResultParent.length: ' + arrResultParent.length)
+	//arrJSON['committedListByDivision'] = formatResult(arrResultParent);
+	arrJSON['committedListByDivision'] = convertToJSON(arrResultParent);
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'callRetrieveActualAmountFromJournal Ended Sucessfully');
+}
+
+function formatResult(arrResultParent)
+{
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'formatResult Script Started...');
+	var arrResultReturns = new Array();
+    var ctr = 0;
+	for(var x=0;x<arrResultParent.length;x++)
+	{
+		var strDepartment = arrResultParent[x][0];
+        var strDepName = arrResultParent[x][1];
+		var strYear = arrResultParent[x][2];
+		var amount = arrResultParent[x][3]; 
+		//nlapiLogExecution('DEBUG', 'formatResult', 'x|ctr|strDepartment|strDepName|strYear|amount: ' + x + '|' + ctr + '|' + strDepartment + '|' + strDepName + '|' + strYear + '|' + amount);
+		for(var y=0;y<ctr;y++)
+		{
+			var strDepReturns = arrResultReturns[y][1];
+			//nlapiLogExecution('DEBUG', 'formatResult', x + '|' + y + ': ' + strDepName + '|' + strDepReturns);
+			if(strDepName == strDepReturns)
+			{
+				var retAmt = parseFloat(arrResultReturns[y][3]); 
+				var total =  retAmt + parseFloat(amount);
+				//nlapiLogExecution('DEBUG', 'formatResult', 'retAmt: ' + retAmt + ' | ' + amount + ' | ' + total);
+				arrResultReturns[y][3] = total;
+				break;
+			}
+			else
+			{
+				if (y == (ctr-1))
+				{
+					//nlapiLogExecution('DEBUG', 'formatResult', 'Setting total for: ' + strDepName + ' in y: ' + y + ' for ctr: ' + ctr);
+					arrResultReturns[ctr] = arrResultParent[x];
+					ctr++;
+					break;
+				}
+			}
+		}
+		//nlapiLogExecution('DEBUG', 'formatResult', 'x|ctr: ' + x + '|' + ctr);
+		if(x < 1)
+		{
+			arrResultReturns[ctr] = arrResultParent[x];
+			ctr++;
+		}
+	}
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'arrResultReturns.length: ' + arrResultReturns.length);
+	arrResultReturns = convertToJSON(arrResultReturns);
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'formatResult Ended Sucessfully');
+	return arrResultReturns;
+}
+
+function convertToJSON(arrResultReturns)
+{
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'convertToJSON Script Started...');
+	var arrId = ['divisionName', 'divisionInternalID', 'Year', 'Amount'];
+	for(var x=0;x<arrResultReturns.length;x++)
+	{
+		var arrTemp = {};
+		for(var y=0;y<arrResultReturns[x].length;y++)
+		{
+			arrTemp[arrId[y]] = arrResultReturns[x][y];
+		}
+		var strJSON = JSON.stringify(arrTemp);
+		arrResultReturns[x] = strJSON;
+	}
+	nlapiLogExecution('AUDIT', 'ACTIVITY', 'convertToJSON Ended Sucessfully');
+	return arrResultReturns;
+}
+
+function array1dToJson(a) {
+  var i, s = '[';
+  for (i = 0; i < a.length; ++i) {
+    if (typeof a[i] == 'string') {
+      s += '"' + a[i] + '"';
+    }
+    else { // assume number type
+      s += a[i];
+    }
+    if (i < a.length - 1) {
+      s += ',';
+    }
+  }
+  s += ']';
+  return s;
+}
+
+function getDivisions(stRecordType, filters, columns) {
+
+	var context = nlapiGetContext();
+	var usageRemaining = context.getRemainingUsage();
+	nlapiLogExecution('AUDIT', 'System', 'Initial Usage: ' + usageRemaining);
+
+	var arrAllResults = new Array();
+
+	// Create the saved search
+	var search = nlapiCreateSearch(stRecordType, filters, columns);
+	var searchResultSet = search.runSearch();
+
+	var usageRemaining = context.getRemainingUsage();
+	nlapiLogExecution('AUDIT', 'System', 'Usage after runSearch(): ' + usageRemaining);
+	
+	for (var i=0; i<5; i++)
+	{
+		var arrResult = searchResultSet.getResults(0 + (1000*i), 1000 + (1000*i));
+		nlapiLogExecution('DEBUG', 'System', 'Results: ' + i + ' | length: ' + arrResult.length);
+
+		if (arrResult != null && arrResult.length > 0)
+		{
+			arrAllResults = arrAllResults.concat(arrResult);
+		}
+	}
+	return arrAllResults;
+}
